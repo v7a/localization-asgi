@@ -90,7 +90,7 @@ class LocalizationMiddleware(BaseHTTPMiddleware):
     'accept-language' header values.
 
     config: Translation querying configuration
-    read_preferred_locales: Read preferred locales from an ASGI scope
+    read_preferred_locales: Read preferred locales from an ASGI scope (default: scope["session"])
     """
 
     def __init__(
