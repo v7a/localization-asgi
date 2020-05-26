@@ -1,5 +1,5 @@
 # ASGI localization app
-An ASGI app that provides your web application with localization support.
+An ASGI app that provides localization support for your web application.
 
 ## What is included?
 * A middleware populating `scope["locales"]` with the request's `accept-language` ordered by weight.
