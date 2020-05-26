@@ -2,8 +2,10 @@
 An ASGI app that provides localization support for your web application.
 
 ## What is included?
-* A middleware populating `scope["locales"]` with the request's `accept-language` ordered by weight.
+* A middleware populating `scope["locales"]` with the request's `accept-language` values ordered by weight.
   * It also populates `scope["translations"]` with a user-defined translations instance (default: `gettext.GNUTranslations`)
+  * It allows preferred locales regardless of `accept-language` by e.g. using sessions, `scope["locales"]` will then contain
+    these
 * An ASGI app exposing an endpoint to switch the preferred locales.
 
 ## Contributing
