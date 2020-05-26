@@ -1,0 +1,7 @@
+.vscode
+__pycache__
+.mypy_cache
+.pylint_cache
+.coverage
+dist
+*.egg-info
