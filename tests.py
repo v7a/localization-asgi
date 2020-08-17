@@ -10,7 +10,12 @@ from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.testclient import TestClient
 
-from localization_asgi import LocalizationMiddleware, LocalizationApp, TranslationConfiguration
+from localization_asgi import (
+    LocalizationMiddleware,
+    LocalizationApp,
+    TranslationConfiguration,
+    LazyString,
+)
 
 current_scope: dict = {}
 
@@ -108,3 +113,13 @@ def test_endpoint_no_locales():
     client.get("/set_locales")
     client.get("/dump")
     assert current_scope["locales"] == []
+
+
+def test_lazy_translations():
+    client = make_client()
+    client.get("/dump")
+
+    lazy = current_scope["translations"].gettext_lazy("hello")
+    assert isinstance(lazy, LazyString)
+    assert str(lazy) == "hello"
+    assert repr(lazy) == "hello"

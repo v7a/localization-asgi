@@ -1,8 +1,10 @@
 """An ASGI app that provides localization support for your web application."""
 
 from dataclasses import dataclass
+from functools import partial
 from gettext import translation, NullTranslations, GNUTranslations
-from typing import cast, Protocol, List, Any, Optional, Type, Tuple
+from inspect import getmembers
+from typing import cast, Protocol, List, Any, Optional, Type, Tuple, Callable
 
 from starlette.datastructures import Scope, URL
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -85,6 +87,19 @@ def _get_locales(request: Request) -> List[str]:
     return _get_sorted_locales([_get_locales_and_weights(entry) for entry in entries])
 
 
+class LazyString:
+    """A lazy string that is evaluated upon calling ``__str__`` or ``__repr__`` on it."""
+
+    def __init__(self, get_string: Callable[[], str]):
+        self.get_string = get_string
+
+    def __str__(self):
+        return self.get_string()
+
+    def __repr__(self):
+        return self.get_string()
+
+
 class LocalizationMiddleware(BaseHTTPMiddleware):
     """The localization middleware that populates the ASGI scope with the parsed and sorted
     'accept-language' header values.
@@ -102,20 +117,35 @@ class LocalizationMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.config = config
         self.read_preferred = read_preferred_locales
+        self.translations_class = self._extend_translations_class(config.translations_class)
+        self.fallback_class = self._extend_translations_class(NullTranslations)
+
+    @staticmethod
+    def _extend_translations_class(klass):
+        lazy_methods = {
+            "{}_lazy".format(name): lambda *a, func=func, **kw: LazyString(partial(func, *a, **kw))
+            for name, func in getmembers(klass, callable)
+            if "gettext" in name
+        }
+        return type("_LazyTranslations", (klass,), lazy_methods)
 
     def _get_domain(self, request: Request) -> str:
         return self.config.get_domain(request.scope) or self.config.default_domain
 
-    async def dispatch(self, request: Request, call_next):
-        request.scope["locales"] = self.read_preferred(request.scope) or _get_locales(request)
-        request.scope["translations"] = translation(
+    def _get_translations(self, request):
+        klass = translation(
             self._get_domain(request),
             self.config.locale_root,
             # prioritize preferred locales over accept-language
             request.scope["locales"],
-            cast(Any, self.config.translations_class),
+            cast(Any, self.translations_class),
             self.config.fallback,
         )
+        return self.fallback_class() if isinstance(klass, NullTranslations) else klass
+
+    async def dispatch(self, request: Request, call_next):
+        request.scope["locales"] = self.read_preferred(request.scope) or _get_locales(request)
+        request.scope["translations"] = self._get_translations(request)
         return await call_next(request)
 
 
